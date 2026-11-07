@@ -1,5 +1,7 @@
 # NavyRec
 
+![NavyRec](docs/hero.jpg)
+
 A macOS screen and meeting recorder that **always stops when you tell it to and never loses a take**, with automatic local transcripts.
 
 NavyRec is a fork of [QuickRecorder 1.6.9](https://github.com/lihaoyun6/QuickRecorder) by lihaoyun6, licensed under **AGPL-3.0** (see [LICENSE](LICENSE)). All credit for the original recorder goes to the upstream project.
@@ -18,6 +20,12 @@ NavyRec is a fork of [QuickRecorder 1.6.9](https://github.com/lihaoyun6/QuickRec
 - Dark navy UI; the recording panels are hidden from the capture
 
 See [FEATURES.md](FEATURES.md) for the full list.
+
+| Start toolbar | While recording |
+|---|---|
+| ![Start toolbar: pick Screen, Window, App, Area or Audio, toggle mic/system audio, or hit Quick](docs/toolbar.jpg) | ![Studio panel with live meters and markers, and the per-recording folder with transcript and summary](docs/recording.jpg) |
+
+<sub>Images are illustrations of the NavyRec interface.</sub>
 
 ## Install (prebuilt)
 
