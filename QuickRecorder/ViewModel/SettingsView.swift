@@ -1,12 +1,11 @@
 //
 //  SettingsView.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/4/19.
 //
 
 import SwiftUI
-import Sparkle
 import ServiceManagement
 import KeyboardShortcuts
 import MatrixColorSelector
@@ -18,19 +17,19 @@ struct SettingsView: View {
         NavigationView {
             List(selection: $selectedItem) {
                 NavigationLink(destination: GeneralView(), tag: "General", selection: $selectedItem) {
-                    Label("General", image: "gear")
+                    Label { Text("General") } icon: { Image("gear", bundle: .navyResources) }
                 }
                 NavigationLink(destination: RecorderView(), tag: "Recorder", selection: $selectedItem) {
-                    Label("Recorder", image: "record")
+                    Label { Text("Recorder") } icon: { Image("record", bundle: .navyResources) }
                 }
                 NavigationLink(destination: OutputView(), tag: "Output", selection: $selectedItem) {
-                    Label("Output", image: "film")
+                    Label { Text("Output") } icon: { Image("film", bundle: .navyResources) }
                 }
                 NavigationLink(destination: HotkeyView(), tag: "Hotkey", selection: $selectedItem) {
-                    Label("Hotkey", image: "hotkey")
+                    Label { Text("Hotkey") } icon: { Image("hotkey", bundle: .navyResources) }
                 }
                 NavigationLink(destination: BlocklistView(), tag: "Blaoklist", selection: $selectedItem) {
-                    Label("Blocklist", image: "blacklist")
+                    Label { Text("Blocklist") } icon: { Image("blacklist", bundle: .navyResources) }
                 }
             }
             .listStyle(.sidebar)
@@ -65,17 +64,15 @@ struct GeneralView: View {
                         }
                     SDivider()
                 }
-                SToggle("Show QuickRecorder on Dock", isOn: $showOnDock)
+                SToggle("Show NavyRec on Dock", isOn: $showOnDock)
                     //.disabled(!showMenubar)
                 SDivider()
-                SToggle("Show QuickRecorder on Menu Bar", isOn: $showMenubar)
+                SToggle("Show NavyRec on Menu Bar", isOn: $showMenubar)
                     //.disabled(!showOnDock)
             }
-            SGroupBox(label: "Update") { UpdaterSettingsView(updater: updaterController.updater) }
             VStack(spacing: 8) {
-                CheckForUpdatesView(updater: updaterController.updater)
                 if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
-                    Text("QuickRecorder v\(appVersion)")
+                    Text("NavyRec v\(appVersion)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -139,7 +136,7 @@ struct RecorderView: View {
                 SToggle("Open video trimmer after recording", isOn: $trimAfterRecord)
             }
             SGroupBox {
-                SToggle("Exclude QuickRecorder itself", isOn: $hideSelf)
+                SToggle("Exclude NavyRec itself", isOn: $hideSelf)
                 SDivider()
                 if #available (macOS 13, *) {
                     SToggle("Include Menu Bar in Recording", isOn: $includeMenuBar)
@@ -255,6 +252,8 @@ struct HotkeyView: View {
             }
             SGroupBox {
                 SItem(label: "Stop Recording") { KeyboardShortcuts.Recorder("", name: .stop) }
+                SItem(label: "Quick Record") { KeyboardShortcuts.Recorder("", name: .quickRecord) }
+                SItem(label: "Add Marker") { KeyboardShortcuts.Recorder("", name: .addMarker) }
                 SDivider()
                 SItem(label: "Pause / Resume") { KeyboardShortcuts.Recorder("", name: .pauseResume) }
             }
@@ -330,7 +329,9 @@ extension KeyboardShortcuts.Name {
     static let screenMagnifier = Self("screenMagnifier")
     static let saveFrame = Self("saveFrame")
     static let pauseResume = Self("pauseResume")
-    static let stop = Self("stop")
+    static let stop = Self("stop", default: .init(.two, modifiers: [.command, .shift]))
+    static let quickRecord = Self("quickRecord", default: .init(.one, modifiers: [.command, .shift]))
+    static let addMarker = Self("addMarker", default: .init(.m, modifiers: [.command, .shift]))
     static let showPanel = Self("showPanel")
 }
 

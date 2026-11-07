@@ -1,6 +1,6 @@
 //
-//  QuickRecorderApp.swift
-//  QuickRecorder
+//  NavyRecApp.swift
+//  NavyRec
 //
 //  Created by apple on 2024/4/16.
 //
@@ -14,7 +14,6 @@ import UserNotifications
 import KeyboardShortcuts
 import ServiceManagement
 import CoreMediaIO
-import Sparkle
 
 let isMacOS12 = ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 12
 let isMacOS14 = ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 14
@@ -32,22 +31,13 @@ let mousePointer = NSWindow(contentRect: NSRect(x: -70, y: -70, width: 70, heigh
 let screenMagnifier = NSWindow(contentRect: NSRect(x: -402, y: -402, width: 402, height: 348), styleMask: [.borderless], backing: .buffered, defer: false)
 let camWindow = NSPanel(contentRect: NSRect(x: 200, y: 200, width: 200, height: 200), styleMask: [.fullSizeContentView, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
 let deviceWindow = NSWindow(contentRect: NSRect(x: 200, y: 200, width: 200, height: 200), styleMask: [.fullSizeContentView, .resizable], backing: .buffered, defer: false)
-let controlPanel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 10, height: 10), styleMask: [.fullSizeContentView], backing: .buffered, defer: false)
+let controlPanel = AppDelegate.EscPanel(contentRect: NSRect(x: 0, y: 0, width: 10, height: 10), styleMask: [.fullSizeContentView], backing: .buffered, defer: false)
 let countdownPanel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 120, height: 120), styleMask: [.fullSizeContentView], backing: .buffered, defer: false)
 let previewWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 266, height: 156), styleMask: [.fullSizeContentView], backing: .buffered, defer: false)
-var updaterController: SPUStandardUpdaterController!
 
 @main
-struct QuickRecorderApp: App {
+struct NavyRecApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    //private let updaterController: SPUStandardUpdaterController
-        
-    init() {
-        // If you want to start the updater manually, pass false to startingUpdater and call .startUpdater() later
-        // This is where you can also pass an updater delegate if you need one
-        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
-    }
-    
     var body: some Scene {
         DocumentGroup(newDocument: qmaPackageHandle()) { file in
             //if SCContext.stream == nil {
@@ -87,9 +77,6 @@ struct QuickRecorderApp: App {
         .handlesExternalEvents(matching: [])
         .commands {
             CommandGroup(replacing: .newItem) {}
-            CommandGroup(after: .appInfo) {
-                CheckForUpdatesView(updater: updaterController.updater)
-            }
         }
     }
 }
@@ -107,6 +94,7 @@ extension Scene {
 
 class AppDelegate: NSObject, NSApplicationDelegate, SCStreamDelegate, SCStreamOutput, AVCaptureVideoDataOutputSampleBufferDelegate  {
     static let shared = AppDelegate()
+    var statusTimer: Timer?
     var filter: SCContentFilter?
     var isCameraReady = false
     var isPresenterON = false
@@ -186,12 +174,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, SCStreamDelegate, SCStreamOu
         if let monitor = mouseMonitor { NSEvent.removeMonitor(monitor); mouseMonitor = nil }
     }
     
-    func applicationWillTerminate(_ aNotification: Notification) {
-        if SCContext.stream != nil { SCContext.stopRecording() }
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if SCContext.streamType != nil || RecordingLifecycle.shared.isFinalizing {
+            RecordingLifecycle.shared.terminationPending = true
+            SCContext.stopAnyRecording()
+            return .terminateLater
+        }
+        return .terminateNow
     }
     
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
+            // navyrec://quick · navyrec://stop — for scripts/Shortcuts, no Automation permission needed
+            if url.scheme == "navyrec" {
+                switch url.host {
+                case "quick": quickRecord()
+                case "stop": SCContext.stopAnyRecording()
+                case "marker": SCContext.addMarker()
+                case "audio": startQuickRecord(audioOnly: true)
+                default: break
+                }
+                continue
+            }
             if SCContext.trimingList.contains(url) { continue }
             createNewWindow(view: VideoTrimmerView(videoURL: url), title: url.lastPathComponent, random: true, only: false)
             closeMainWindow()
@@ -199,12 +203,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, SCStreamDelegate, SCStreamOu
     }
     
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // Materialize the permitted overlays before the initial all-windows snapshot.
+        // Fast-start shortcuts reuse this snapshot without opening a selector first.
+        mousePointer.title = "Mouse Pointer".local
+        screenMagnifier.title = "Screen Magnifier".local
+        camWindow.title = "Camera Overlayer".local
+        deviceWindow.title = "iDevice Overlayer".local
         scPerm = SCContext.updateAvailableContentSync() != nil
         
-        let process = NSWorkspace.shared.runningApplications.filter({ $0.bundleIdentifier == "com.lihaoyun6.QuickRecorder" })
+        let process = NSWorkspace.shared.runningApplications.filter({ $0.bundleIdentifier == "io.github.navyrec" })
         if process.count > 1 {
             DispatchQueue.main.async {
-                let button = createAlert(title: "QuickRecorder is Running".local, message: "Please do not run multiple instances!".local, button1: "Quit".local).runModal()
+                let button = createAlert(title: "NavyRec is Running".local, message: "Please do not run multiple instances!".local, button1: "Quit".local).runModal()
                 if button == .alertFirstButtonReturn { NSApp.terminate(self) }
             }
         }
@@ -228,7 +238,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SCStreamDelegate, SCStreamOu
                 "pixelFormat": PixFormat.delault.rawValue,
                 "encoder": Encoder.h264.rawValue,
                 "poSafeDelay": 1,
-                "saveDirectory": userDesktop as NSString,
+                "saveDirectory": (userDesktop as NSString).appendingPathComponent("NavyRec") as NSString,
                 "showMouse": true,
                 "recordMic": false,
                 "remuxAudio": isMacOS12 ? false : true,
@@ -263,6 +273,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, SCStreamDelegate, SCStreamOu
 
         statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusBarItem.button?.image = NSImage()
+        statusTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            guard SCContext.streamType != nil, !RecordingLifecycle.shared.isFinalizing else { return }
+            statusBarItem.button?.title = " " + SCContext.getRecordingLength()
+            if SCContext.autoStop > 0 && SCContext.timePassed >= Double(SCContext.autoStop * 60) {
+                SCContext.stopAnyRecording()
+                return
+            }
+            if !controlPanel.isVisible {
+                AppDelegate.shared.showRecordingControls()
+            }
+        }
 
         mousePointer.title = "Mouse Pointer".local
         mousePointer.level = .screenSaver
@@ -315,7 +336,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SCStreamDelegate, SCStreamOu
         }
         KeyboardShortcuts.onKeyDown(for: .saveFrame) { if SCContext.stream != nil { SCContext.saveFrame = true }}
         KeyboardShortcuts.onKeyDown(for: .screenMagnifier) { if SCContext.stream != nil { SCContext.isMagnifierEnabled.toggle() }}
-        KeyboardShortcuts.onKeyDown(for: .stop) { if SCContext.stream != nil { SCContext.stopRecording() }}
+        KeyboardShortcuts.onKeyDown(for: .stop) { SCContext.stopAnyRecording() }
+        KeyboardShortcuts.onKeyDown(for: .quickRecord) { AppDelegate.shared.quickRecord() }
+        KeyboardShortcuts.onKeyDown(for: .addMarker) { SCContext.addMarker() }
         KeyboardShortcuts.onKeyDown(for: .pauseResume) { if SCContext.stream != nil { SCContext.pauseRecording() }}
         KeyboardShortcuts.onKeyDown(for: .startWithAudio) {[self] in
             if SCContext.streamType != nil { return }
@@ -323,17 +346,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, SCStreamDelegate, SCStreamOu
             prepRecord(type: "audio", screens: SCContext.getSCDisplayWithMouse(), windows: nil, applications: nil, fastStart: true)
         }
         KeyboardShortcuts.onKeyDown(for: .startWithScreen) {[self] in
-            if SCContext.stream != nil { return }
+            if !SCContext.canStartRecording { return }
             closeAllWindow()
             prepRecord(type: "display", screens: SCContext.getSCDisplayWithMouse(), windows: nil, applications: nil, fastStart: true)
         }
         KeyboardShortcuts.onKeyDown(for: .startWithArea) {[self] in
-            if SCContext.stream != nil { return }
+            if !SCContext.canStartRecording { return }
             closeAllWindow()
             showAreaSelector(size: NSSize(width: 600, height: 450))
         }
         KeyboardShortcuts.onKeyDown(for: .startWithWindow) { [self] in
-            if SCContext.stream != nil { return }
+            if !SCContext.canStartRecording { return }
             closeAllWindow()
             let frontmostApp = NSWorkspace.shared.frontmostApplication
             if let pid = frontmostApp?.processIdentifier {
@@ -347,6 +370,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SCStreamDelegate, SCStreamOu
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         closeAllWindow()
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 3) { RecordingArchive.recoverOrphans() }
         if showOnDock { _ = applicationShouldHandleReopen(NSApp, hasVisibleWindows: true) }
         tips("Would you like to use H.265 format for better video quality and smaller file size?",
              id: "qr.switch-to-h265.note", buttonTitle: "Use H.265", switchButton: true) {
@@ -355,27 +379,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, SCStreamDelegate, SCStreamOu
     }
     
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if SCContext.stream == nil {
+        if SCContext.canStartRecording {
             let w1 = NSApp.windows.filter({ !$0.title.contains("Item-0") && !$0.title.isEmpty && $0.isVisible })
             let w2 = w1.filter({ !$0.title.contains(".qma") })
             if (!w1.isEmpty && w2.isEmpty) || w1.isEmpty {
-                let offset = (!showOnDock && !showMenubar) ? 127 : 0
-                let width = isMacOS12 ? 800 : 928
-                let mainPanel = EscPanel(contentRect: NSRect(x: 0, y: 0, width: width + offset, height: 100), styleMask: [.fullSizeContentView, .nonactivatingPanel], backing: .buffered, defer: false)
-                mainPanel.contentView = NSHostingView(rootView: ContentView())
-                mainPanel.title = "QuickRecorder".local
+                let mainPanel = EscPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+                let content = NSHostingView(rootView: ContentViewNew())
+                mainPanel.contentView = content
+                mainPanel.title = "NavyRec".local
                 mainPanel.isOpaque = false
                 mainPanel.level = .floating
                 mainPanel.isRestorable = false
                 mainPanel.backgroundColor = .clear
+                mainPanel.appearance = NSAppearance(named: .darkAqua)
                 mainPanel.isReleasedWhenClosed = false
                 mainPanel.isMovableByWindowBackground = true
-                mainPanel.collectionBehavior = [.canJoinAllSpaces]
-                mainPanel.center()
-                if let screen = mainPanel.screen {
-                    let wX = (screen.frame.width - mainPanel.frame.width) / 2 + screen.frame.minX
-                    let wY = (screen.frame.height - mainPanel.frame.height) / 2 + screen.frame.minY
-                    mainPanel.setFrameOrigin(NSPoint(x: wX, y: wY))
+                mainPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+                let size = content.fittingSize
+                if let screen = SCContext.getScreenWithMouse() ?? NSScreen.main {
+                    mainPanel.setFrame(NSRect(x: screen.visibleFrame.midX - size.width / 2,
+                                             y: screen.visibleFrame.minY + 22,
+                                             width: size.width, height: size.height), display: true)
                 }
                 mainPanel.makeKeyAndOrderFront(self)
                 if #unavailable(macOS 13) { NSApp.activate(ignoringOtherApps: true) }
@@ -407,7 +431,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SCStreamDelegate, SCStreamOu
 }
 
 func closeMainWindow() {
-    for w in NSApp.windows.filter({ $0.title == "QuickRecorder".local }) {
+    for w in NSApp.windows.filter({ $0.title == "NavyRec".local }) {
         w.close()
     }
 }
@@ -524,7 +548,7 @@ extension Bundle {
 }
 
 extension String {
-    var local: String { return NSLocalizedString(self, comment: "") }
+    var local: String { return NSLocalizedString(self, bundle: .navyResources, comment: "") }
     var deletingPathExtension: String {
         return (self as NSString).deletingPathExtension
     }
@@ -548,7 +572,7 @@ extension NSMenuItem {
 
 extension NSImage {
     static func createScreenShot() -> NSImage? {
-        let excludedAppBundleIDs = ["com.lihaoyun6.QuickRecorder"]
+        let excludedAppBundleIDs = ["io.github.navyrec"]
         var exclusionPIDs = [Int]()
         for app in NSWorkspace.shared.runningApplications {
             if excludedAppBundleIDs.contains(app.bundleIdentifier ?? "") {

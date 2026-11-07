@@ -34,31 +34,23 @@ struct HighlightMask: View {
             .cornerRadius(10)
             .help("\(app) - \(title)")
             .sheet(isPresented: $showSheet) {
+                VStack(spacing: 12) {
                 HStack(spacing: 4) {
                     Button(action: {
                         showSheet = false
                     }, label: {
-                        VStack{
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.gray)
-                            Text("Cancel")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
-                    }).buttonStyle(.plain)
-                    Spacer()
-                    OptionsView()
+                        Image(systemName: "xmark").foregroundStyle(Theme.mute)
+                    }).buttonStyle(NavyButton(border: Theme.mute, height: 24)).accessibilityLabel("Cancel")
                     Spacer()
                     Button(action: {
                         isPopoverShowing = true
                     }, label: {
                         Image(systemName: "timer")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.blue)
                     })
-                    .buttonStyle(.plain)
-                    .padding(.top, 42.5)
+                    .buttonStyle(NavyButton(border: Theme.mute, height: 28))
+                    .help("Stop after")
+                    .accessibilityLabel("Stop after")
+
                     .popover(isPresented: $isPopoverShowing, arrowEdge: .bottom, content: {
                         HStack {
                             Text(" Stop after".local)
@@ -70,23 +62,26 @@ struct HighlightMask: View {
                         }
                         .fixedSize()
                         .padding()
+                        .font(.system(size: 13))
+                        .background(Theme.navy2)
+                        .modifier(NavyPanel())
                     })
                     Button(action: {
                         startRecording()
                     }, label: {
-                        VStack{
-                            Image(systemName: "record.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.red)
-                            Text("Start")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
-                    }).buttonStyle(.plain)
+                        Text("Record")
+                    }).buttonStyle(NavyButton(fill: Theme.blue, foreground: Theme.navy0))
                 }
-                .focusable(false)
-                .frame(width: 640, height: 90)
-                .padding(.horizontal, 40)
+
+                NavyDivider()
+                OptionsView()
+                }
+                .padding(.vertical, 16)
+                .frame(width: 640)
+                .padding(.horizontal, 16)
+                .font(.system(size: 13))
+                .background(Theme.navy2)
+                .modifier(NavyPanel())
                 .onDisappear {
                     if let mask = WindowHighlighter.shared.mask {
                         mask.close()

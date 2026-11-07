@@ -1,0 +1,10 @@
+/* 
+  InfoPlist.strings
+  NavyRec
+
+  Created by apple on 2024/4/28.
+  
+*/
+"NSMicrophoneUsageDescription" = "NavyRec necessita di questo permesso per registrare l’audio dal microfono.";
+"NSCameraUsageDescription" = "NavyRec necessita di questo permesso per registrare video dalla fotocamera o dal dispositivo mobile.";
+"NSHumanReadableCopyright" = "Copyright © 2024 lihaoyun6. Tutti i diritti riservati.";

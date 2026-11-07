@@ -1,6 +1,6 @@
 //
 //  AreaSelector.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/4/20.
 //
@@ -38,7 +38,7 @@ struct resizeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 4) {
-                Text("Area Size:")
+                Text("Area Size:").foregroundStyle(Theme.mute)
                 TextField("", value: $areaWidth, formatter: NumberFormatter())
                     .frame(width: 60)
                     .textFieldStyle(.roundedBorder)
@@ -62,7 +62,7 @@ struct resizeView: View {
                     }
             }
             HStack(spacing: 4) {
-                Text("Output Size:")
+                Text("Output Size:").foregroundStyle(Theme.mute)
                 let scale = Int(screen.nsScreen!.backingScaleFactor)
                 Text(" \(highRes == 2 ? areaWidth * scale : areaWidth) x \(highRes == 2 ? areaHeight * scale : areaHeight)")
             }
@@ -86,8 +86,6 @@ struct AreaSelector: View {
     
     var body: some View {
         ZStack {
-            Color(nsColor: NSColor.windowBackgroundColor)
-                .cornerRadius(10)
             VStack {
                 HStack(spacing: 6) {
                     Spacer()
@@ -97,68 +95,34 @@ struct AreaSelector: View {
                         appDelegate.stopGlobalMouseMonitor()
                         WindowHighlighter.shared.registerMouseMonitor(mode: 2)
                     }, label: {
-                        VStack(spacing:0){
-                            ZStack {
-                                Image(systemName: "circle.fill")
-                                    .font(.system(size: 36))
-                                    .foregroundStyle(.green)
-                                Image("window.select")
-                                    .resizable().scaledToFit()
-                                    .foregroundStyle(.black)
-                                    .frame(width: 27)
-                                    .offset(y: 0.5)
-                                    .blendMode(.destinationOut)
-                            }
-                            .compositingGroup()
-                            .frame(width: 42, height: 41)
-                            Text("Window Area")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
-                    }).buttonStyle(.plain)
+                        Label("Window Area", systemImage: "macwindow.and.cursorarrow")
+                    }).buttonStyle(NavyButton(border: Theme.mute))
                     Button(action: {
                         resizePopoverShowing = true
                     }, label: {
-                        VStack{
-                            Image(systemName: "viewfinder.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.blue)
-                            Text("Resize")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
-                    })
-                    .buttonStyle(.plain)
+                        Label("Resize", systemImage: "viewfinder")
+                    }).buttonStyle(NavyButton(border: Theme.mute))
                     .sheet(isPresented: $resizePopoverShowing, content: {
                         HStack(spacing: 10) {
                             Button(action: {
                                 resizePopoverShowing = false
                             }, label: {
-                                VStack{
-                                    Image(systemName: "arrow.uturn.backward.circle.fill")
-                                        .font(.system(size: 30))
-                                        .foregroundStyle(.secondary)
-                                    Text("Back")
-                                        .foregroundStyle(.secondary)
-                                        .font(.system(size: 12))
-                                }
+                                Label("Back", systemImage: "arrow.uturn.backward")
                                 
-                            }).buttonStyle(.plain)
+                            }).buttonStyle(NavyButton(border: Theme.mute))
                             resizeView(screen: screen)
-                        }.padding()
+                        }.padding().background(Theme.navy2).modifier(NavyPanel())
                     })
-                    Spacer()
-                    OptionsView().padding(.horizontal, 10)
                     Spacer()
                     Button(action: {
                         isPopoverShowing = true
                     }, label: {
                         Image(systemName: "timer")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.blue)
                     })
-                    .buttonStyle(.plain)
-                    .padding(.top, 42.5)
+                    .buttonStyle(NavyButton(border: Theme.mute, height: 28))
+                    .help("Stop after")
+                    .accessibilityLabel("Stop after")
+
                     .popover(isPresented: $isPopoverShowing, arrowEdge: .bottom, content: {
                         HStack {
                             Text(" Stop after".local)
@@ -170,22 +134,20 @@ struct AreaSelector: View {
                         }
                         .fixedSize()
                         .padding()
+                        .font(.system(size: 13))
+                        .background(Theme.navy2)
+                        .modifier(NavyPanel())
                     })
                     Button(action: {
                         startRecording()
                     }, label: {
-                        VStack{
-                            Image(systemName: "record.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.red)
-                            Text("Start")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
-                    }).buttonStyle(.plain)
+                        Text("Record")
+                    }).buttonStyle(NavyButton(fill: Theme.blue, foreground: Theme.navy0))
                     Spacer()
                 }
-            }.padding(.horizontal, 10)
+                NavyDivider()
+                OptionsView()
+            }.padding(16)
             Button(action: {
                 /*for w in NSApp.windows.filter({ $0.title == "Area Selector".local || $0.title == "Start Recording".local}) { w.close() }
                 if let monitor = keyMonitor {
@@ -195,17 +157,18 @@ struct AreaSelector: View {
                 appDelegate.stopGlobalMouseMonitor()*/
                 nsWindow?.close()
             }, label: {
-                Image(systemName: "x.circle")
+                Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.mute)
             })
-            .buttonStyle(.plain)
-            .padding(.top, -39)
-            .padding(.leading, -389)
+            .buttonStyle(NavyButton(border: Theme.mute, height: 24))
+            .accessibilityLabel("Close")
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(4)
             .keyboardShortcut(.cancelAction)
         }
-        .focusable(false)
-        .frame(width: 790, height: 90)
+
+        .frame(width: 790, height: 180)
         .background(WindowAccessor(onWindowOpen: { w in nsWindow = w }, onWindowClose: {
             DispatchQueue.main.async {
                 for w in NSApp.windows.filter({ $0.title == "Area Selector".local }) { w.close() }
@@ -216,9 +179,15 @@ struct AreaSelector: View {
                 appDelegate.stopGlobalMouseMonitor()
             }
         }))
+    .font(.system(size: 13))
+    .tint(Theme.blue)
+    .background(Theme.navy2)
+    .modifier(NavyPanel())
+    .modifier(RecordingStartGate())
     }
     
     func startRecording() {
+        guard SCContext.canStartRecording else { return }
         closeAllWindow()
         appDelegate.stopGlobalMouseMonitor()
         var window = NSWindow()

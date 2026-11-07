@@ -1,6 +1,6 @@
 /* 
   Localizable.strings
-  QuickRecorder
+  NavyRec
 
   Created by lihaoyun6 on 2024/4/16.
 */
@@ -19,9 +19,9 @@
 "Select Applications" = "選擇應用程式";
 "Permission Required" = "需要授權";
 "Compatibility Warning" = "相容性警告";
-"You are using macOS 12.7.4\nOutput files will be randomly corrupted on this version of macOS!\n\nPlease upgrade to 12.7.5 to solve it." = "檢測到當前系統版本為 macOS 12.7.4\nQuickRecorder 在當前系統版本中會\n隨機出現錄影檔案儲存失敗的情況!\n\n請升級至 macOS 12.7.5 以解決此問題.";
-"QuickRecorder needs screen recording permissions, even if you only intend on recording audio." = "QuickRecorder 需要獲取錄影許可權\n(即使只是用來錄製音訊)";
-"QuickRecorder needs permission to record your microphone." = "QuickRecorder 需要獲取麥克風許可權來錄製所需的聲音";
+"You are using macOS 12.7.4\nOutput files will be randomly corrupted on this version of macOS!\n\nPlease upgrade to 12.7.5 to solve it." = "檢測到當前系統版本為 macOS 12.7.4\nNavyRec 在當前系統版本中會\n隨機出現錄影檔案儲存失敗的情況!\n\n請升級至 macOS 12.7.5 以解決此問題.";
+"NavyRec needs screen recording permissions, even if you only intend on recording audio." = "NavyRec 需要獲取錄影許可權\n(即使只是用來錄製音訊)";
+"NavyRec needs permission to record your microphone." = "NavyRec 需要獲取麥克風許可權來錄製所需的聲音";
 "Please select a folder to save output files" = "請選擇錄音/錄屏檔案的儲存位置";
 "Open Settings" = "開啟系統設定";
 "Quit" = "退出程式";
@@ -65,7 +65,7 @@
 "Audio" = "音訊設定";
 "Video" = "影片設定";
 "Save" = "儲存位置";
-"Exclude QuickRecorder itself" = "排除QuickRecorder視窗";
+"Exclude NavyRec itself" = "排除NavyRec視窗";
 "Highlight the Mouse Cursor" = "高亮顯示滑鼠游標";
 "Not available for \"Single Window Capture\"" = "此功能在錄製單個視窗時不可用";
 "Normal - 128Kbps" = "標準 - 128Kbps";
@@ -86,7 +86,7 @@
 "File size: %@" = "檔案大小: %@";
 "Recording: " = "正在錄製: ";
 "Preferences…" = "設定…";
-"Quit QuickRecorder" = "退出QuickRecorder";
+"Quit NavyRec" = "退出NavyRec";
 "Multiple Windows" = "多個視窗";
 "Multiple Apps" = "多個應用";
 "Unknown App" = "未知應用";
@@ -101,7 +101,6 @@
 "File saved to: %@" = "檔案已儲存至: %@";
 "File saved to folder: %@" = "檔案已儲存到: %@ 目錄中";
 "Startup" = "啟動設定";
-"Update" = "更新設定";
 "Launch at Login" = "登入時啟動";
 "Shortcuts Settings" = "快速鍵設定";
 "Pause / Resume" = "暫停/繼續錄製";
@@ -130,13 +129,10 @@
 "Default" = "系統預設";
 "Pixel Format" = "像素格式";
 "Color Space" = "色彩空間";
-"Check for Updates…" = "檢查程式更新…";
 "Update Settings" = "更新設定";
-"Automatically check for updates" = "自動檢查程式更新";
-"Automatically download updates" = "自動下載程式更新";
 "Connect your device via USB" = "請用 USB 傳輸線連接裝置";
-"Show QuickRecorder on Dock" = "在 Dock 中顯示 QuickRecorder";
-"Show QuickRecorder on Menu Bar" = "在選單列中顯示 QuickRecorder";
+"Show NavyRec on Dock" = "在 Dock 中顯示 NavyRec";
+"Show NavyRec on Menu Bar" = "在選單列中顯示 NavyRec";
 "Icon Settings" = "圖示設定";
 "Still Processing" = "仍在處理";
 "Mixing audio track..." = "正在混合音軌...";
@@ -146,8 +142,8 @@
 "OK" = "好";
 "Failed to save file" = "儲存檔案時出錯";
 "Enable Acoustic Echo Cancellation" = "消除麥克風回聲";
-"QuickRecorder is Running" = "QuickRecorder 已在執行";
-"Please do not run multiple instances!" = "請勿開啟多個 QuickRecorder!";
+"NavyRec is Running" = "NavyRec 已在執行";
+"Please do not run multiple instances!" = "請勿開啟多個 NavyRec!";
 "Show Windows with No Title" = "顯示無標題視窗";
 "Don't Create Thumbnails" = "不生成縮圖";
 "Record HDR" = "錄製HDR影片";
@@ -167,7 +163,6 @@
 "Unable to create output folder!" = "無法建立輸出資料夾!";
 "The output path is a file instead of a folder!"= "所選的儲存位置是一個檔案, 應該是資料夾!";
 "Mini size Menu Bar controller" = "使用迷你選單列控制器";
-"Check for Updates" = "立即檢測程式更新";
 "Error" = "錯誤";
 "Already recording!" = "正在錄製中!";
 "Invalid screen number!" = "無效的螢幕編號!";
@@ -209,7 +204,7 @@
 "Use H.265" = "使用 H.265";
 "Continue with H.264" = "繼續使用 H.264";
 "Would you like to use H.265 format for better video quality and smaller file size?" = "是否使用 H.265 編碼以獲得更好的錄影畫質和更小的檔案體積?";
-"QuickRecorder needs this permission to record your camera or mobile device." = "QuickRecorder 需要此權限以錄製來自攝像頭或行動裝置的畫面.";
+"NavyRec needs this permission to record your camera or mobile device." = "NavyRec 需要此權限以錄製來自攝像頭或行動裝置的畫面.";
 "Select Window Directly" = "直接點選視窗";
 
 // Please don't translate the following warning strings, it will make it difficult for me to read the logs

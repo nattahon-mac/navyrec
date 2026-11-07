@@ -1,6 +1,6 @@
 //
 //  AppSelector.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/4/16.
 //
@@ -20,7 +20,7 @@ struct AppSelector: View {
     
     var body: some View {
         ZStack {
-            VStack(spacing: 15) {
+            VStack(spacing: 10) {
                 if #available(macOS 15, *) {
                     Text("Please select the App(s) to record").offset(y: 12)
                 } else {
@@ -52,26 +52,22 @@ struct AppSelector: View {
                                                             let appName = item.applicationName
                                                             let appID = item.bundleIdentifier
                                                             Text(appName != "" ? appName : appID)
-                                                                .foregroundStyle(.secondary)
+                                                                .font(.system(size: 12))
+                                                                .foregroundStyle(Theme.text)
                                                                 .lineLimit(1)
                                                                 .truncationMode(.tail)
                                                         }
                                                         .frame(width: 110, height: 94)
                                                         .padding(10)
-                                                        .background(
-                                                            Rectangle()
-                                                                .foregroundStyle(.blue)
-                                                                .cornerRadius(5)
-                                                                .opacity(selected.contains(item) ? 0.2 : 0.0)
-                                                        )
+                                                        .modifier(NavyThumbnail(selected: selected.contains(item)))
                                                         Image(systemName: "circle.fill")
                                                             .font(.system(size: 31))
-                                                            .foregroundStyle(.white)
+                                                            .foregroundStyle(Theme.navy1)
                                                             .opacity(selected.contains(item) ? 1.0 : 0.0)
                                                             .offset(x: 20, y: 10)
                                                         Image(systemName: "checkmark.circle.fill")
                                                             .font(.system(size: 27))
-                                                            .foregroundStyle(.green)
+                                                            .foregroundStyle(Theme.ice)
                                                             .opacity(selected.contains(item) ? 1.0 : 0.0)
                                                             .offset(x: 20, y: 10)
                                                     }
@@ -89,7 +85,7 @@ struct AppSelector: View {
                         .onAppear{ display = screen }
                     }
                 }
-                .frame(height: 445)
+                .frame(height: 320)
                 .padding(.horizontal, 10)
                 .onChange(of: selectedTab) { _ in selected.removeAll() }
                 .onReceive(viewModel.$isReady) { isReady in
@@ -101,32 +97,25 @@ struct AppSelector: View {
                         }
                     }
                 }
+                NavyDivider().padding(.horizontal, 16)
+                OptionsView()
                 HStack(spacing: 4) {
                     Button(action: {
                         viewModel.updateAppList()
                     }, label: {
-                        VStack{
-                            Image(systemName: "arrow.clockwise.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.blue)
-                            Text("Refresh")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
+                        Label("Refresh", systemImage: "arrow.clockwise")
                         
-                    }).buttonStyle(.plain)
-                    Spacer()
-                    OptionsView().padding(.leading, 18)
+                    }).buttonStyle(NavyButton(border: Theme.mute))
                     Spacer()
                     Button(action: {
                         isPopoverShowing = true
                     }, label: {
                         Image(systemName: "timer")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.blue)
                     })
-                    .buttonStyle(.plain)
-                    .padding(.top, 42.5)
+                    .buttonStyle(NavyButton(border: Theme.mute, height: 28))
+                    .help("Stop after")
+                    .accessibilityLabel("Stop after")
+
                     .popover(isPresented: $isPopoverShowing, arrowEdge: .bottom, content: {
                         HStack {
                             Text(" Stop after".local)
@@ -139,28 +128,29 @@ struct AppSelector: View {
                         }
                         .fixedSize()
                         .padding()
+                        .font(.system(size: 13))
+                        .background(Theme.navy2)
+                        .modifier(NavyPanel())
                     })
                     Button(action: {
                         startRecording()
                     }, label: {
-                        VStack{
-                            Image(systemName: "record.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.red)
-                            Text("Start")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
-                    })
-                    .buttonStyle(.plain)
+                        Text("Record")
+                    }).buttonStyle(NavyButton(fill: Theme.blue, foreground: Theme.navy0))
                     .disabled(selected.count < 1)
-                }.padding(.horizontal, 40)
+                }.padding(.horizontal, 16)
                 Spacer()
-            }.padding(.top, -5)
+            }.padding(.top, 12)
         }.frame(width: 780, height:555)
+    .font(.system(size: 13))
+    .tint(Theme.blue)
+    .background(Theme.navy2)
+    .modifier(NavyPanel())
+    .modifier(RecordingStartGate())
     }
     
     func startRecording() {
+        guard SCContext.canStartRecording else { return }
         closeAllWindow()
         appDelegate.createCountdownPanel(screen: display) {
             SCContext.autoStop = autoStop
@@ -220,18 +210,18 @@ struct OptionsView: View {
         VStack(spacing: 6) {
             HStack {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Resolution")
-                    Text("Frame Rate")
+                    Text("Resolution").foregroundStyle(Theme.mute)
+                    Text("Frame Rate").foregroundStyle(Theme.mute)
                 }
                 VStack(alignment: .leading, spacing: 10) {
-                    Picker("", selection: $highRes) {
+                    Picker("Resolution", selection: $highRes) {
                         Text("High (auto)").tag(2)
                         Text("Normal (1x)").tag(1)
                         //Text("Low (0.5x)").tag(0)
                     }
-                    .buttonStyle(.borderless)
-                    .frame(minWidth: isMacOS12 ? 100 : 10)
-                    Picker("", selection: $frameRate) {
+                    .modifier(NavyOptionPicker())
+                    .frame(width: 105, alignment: .leading)
+                    Picker("Frame Rate", selection: $frameRate) {
                         if ![240, 144, 120, 90, 60, 30, 24, 15 ,10].contains(frameRate) {
                             Text("\(frameRate) FPS").tag(frameRate)
                         }
@@ -245,23 +235,23 @@ struct OptionsView: View {
                         Text("15 FPS").tag(15)
                         Text("10 FPS").tag(10)
                     }
-                    .buttonStyle(.borderless)
-                    .frame(minWidth: isMacOS12 ? 100 : 10)
-                }.scaledToFit()
-                Divider().frame(height: 50)
+                    .modifier(NavyOptionPicker())
+                    .frame(width: 105, alignment: .leading)
+                }
+                NavyDivider(vertical: true).frame(height: 64)
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Quality")
-                    Text("Background")
-                }.padding(.leading, isMacOS12 ? 0 : 8)
+                    Text("Quality").foregroundStyle(Theme.mute)
+                    Text("Background").foregroundStyle(Theme.mute)
+                }
                 VStack(alignment: .leading, spacing: 10) {
-                    Picker("", selection: $videoQuality) {
+                    Picker("Quality", selection: $videoQuality) {
                         Text("High").tag(1.0)
                         Text("Medium").tag(0.7)
                         Text("Low").tag(0.3)
                     }
-                    .buttonStyle(.borderless)
-                    .frame(minWidth: isMacOS12 ? 100 : 10)
-                    Picker("", selection: $background) {
+                    .modifier(NavyOptionPicker())
+                    .frame(width: 105, alignment: .leading)
+                    Picker("Background", selection: $background) {
                         Text("Wallpaper").tag(BackgroundType.wallpaper)
                         if ud.bool(forKey: "withAlpha") { Text("Transparent").tag(BackgroundType.clear) }
                         Text("Black").tag(BackgroundType.black)
@@ -274,71 +264,71 @@ struct OptionsView: View {
                         Text("Red").tag(BackgroundType.red)
                         Text("Custom").tag(BackgroundType.custom)
                     }
-                    .buttonStyle(.borderless)
-                    .frame(minWidth: isMacOS12 ? 100 : 10)
-                }.scaledToFit()
-                Divider().frame(height: 50)
-                VStack(alignment: .leading, spacing: isMacOS12 ? 10 : 2) {
+                    .modifier(NavyOptionPicker())
+                    .frame(width: 105, alignment: .leading)
+                }
+                NavyDivider(vertical: true).frame(height: 64)
+                VStack(alignment: .leading, spacing: 6) {
                     if #available(macOS 15, *) {
                         Toggle(isOn: $recordHDR) {
                             HStack(spacing:0){
                                 Image(systemName: "sparkles.square.filled.on.square")
-                                    .font(.subheadline)
+                                    .font(.system(size: 13))
                                     .frame(width: isMacOS12 ? 20 : 16)
                                 Text("Record HDR")
-                                    .font(.subheadline)
+                                    .font(.system(size: 13))
                             }
                         }
                         .fixedSize()
-                        .toggleStyle(.checkbox)
+                        .toggleStyle(.checkbox).tint(Theme.blue)
                     }
                     Toggle(isOn: $showMouse) {
                         HStack(spacing: 0){
                             Image(systemName: "cursorarrow")
-                                .font(isMacOS12 ? .body : .subheadline)
+                                .font(.system(size: 13))
                                 .frame(width: isMacOS12 ? 20 : 16)
                             Text("Record Cursor")
-                                .font(isMacOS12 ? .body : .subheadline)
+                                .font(.system(size: 13))
                         }
                     }
                     .fixedSize()
-                    .toggleStyle(.checkbox)
+                    .toggleStyle(.checkbox).tint(Theme.blue)
                     if #available(macOS 13, *) {
                         Toggle(isOn: $recordWinSound) {
                             HStack(spacing: 0){
                                 Image(systemName: "speaker.wave.1.fill")
-                                    .font(isMacOS12 ? .body : .subheadline)
+                                    .font(.system(size: 13))
                                     .frame(width: isMacOS12 ? 20 : 16)
                                 Text("App's Audio")
-                                    .font(.subheadline)
+                                    .font(.system(size: 13))
                             }
                         }
                         .fixedSize()
-                        .toggleStyle(.checkbox)
+                        .toggleStyle(.checkbox).tint(Theme.blue)
                     }
                     HStack(spacing: 0) {
                         Toggle(isOn: $recordMic) {
                             Image(systemName: "mic.fill")
-                                .font(isMacOS12 ? .body : .subheadline)
+                                .font(.system(size: 13))
                                 .frame(width: isMacOS12 ? 20 : 16)
                         }
                         .fixedSize()
-                        .toggleStyle(.checkbox)
+                        .toggleStyle(.checkbox).tint(Theme.blue)
+                        .accessibilityLabel("Record microphone")
                         .onChange(of: recordMic) { _ in
                             Task { await SCContext.performMicCheck() }
                         }
                         .onAppear{ if micList.isEmpty { recordMic = false } }
                         .disabled(micList.isEmpty)
-                        Picker("", selection: $micDevice) {
+                        Picker("Microphone", selection: $micDevice) {
                             Text("Default".local).tag("default")
                             ForEach(micList, id: \.self) { device in
                                 Text(device.localizedName).tag(device.localizedName)
                             }
                         }
                         .disabled(!recordMic)
-                        .scaleEffect(isMacOS12 ? 1 : 0.8)
-                        .padding(.leading, isMacOS12 ? -7 : -16)
-                        .frame(width: 90, height: isMacOS12 ? 20 :12)
+                        .modifier(NavyOptionPicker())
+                        .frame(width: 105)
                         .onAppear{
                             let list = micList.map({ $0.localizedName })
                             if !list.contains(micDevice) { micDevice = "default" }
@@ -356,8 +346,8 @@ struct OptionsView: View {
                             }).buttonStyle(.plain).fixedSize()
                         }
                     }
-                }.padding(.trailing, isMacOS12 ? 0 : -17)
+                }
             }
-        }
+        }.font(.system(size: 13)).foregroundStyle(Theme.text)
     }
 }

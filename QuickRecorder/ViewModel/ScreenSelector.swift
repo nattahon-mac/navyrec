@@ -1,6 +1,6 @@
 //
 //  ScreenSelector.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/4/18.
 //
@@ -19,7 +19,7 @@ struct ScreenSelector: View {
     
     var body: some View {
         ZStack {
-            VStack(spacing: 15) {
+            VStack(spacing: 10) {
                 Text("Please select the screen to record")
                 let count = viewModel.screenThumbnails.count
                 ScrollView(.vertical) {
@@ -54,31 +54,27 @@ struct ScreenSelector: View {
                                                         Image(nsImage: viewModel.screenThumbnails[index].image)
                                                             .resizable()
                                                             .aspectRatio(contentMode: .fit)
-                                                    }.frame(width: count == 1 ? 672 : 320, height: count == 1 ? 378 : 180, alignment: .center)
+                                                    }.frame(width: count == 1 ? 480 : 320, height: count == 1 ? 270 : 180, alignment: .center)
                                                     let screenName = NSScreen.screens.first(where: { $0.displayID == viewModel.screenThumbnails[index].screen.displayID })?.localizedName ?? "Display ".local + "\(viewModel.screenThumbnails[index].screen.displayID)"
                                                     Text(screenName)
-                                                        .foregroundStyle(.secondary)
+                                                        .font(.system(size: 12))
+                                                        .foregroundStyle(Theme.text)
                                                         .lineLimit(1)
                                                         .truncationMode(.tail)
                                                         .offset(y:count == 1 ? 5 : 2)
                                                 }
                                                 .padding(count == 1 ? 19 : 10)
-                                                .background(
-                                                    Rectangle()
-                                                        .foregroundStyle(.blue)
-                                                        .cornerRadius(5)
-                                                        .opacity((selected == viewModel.screenThumbnails[index].screen) ? 0.2 : 0.0)
-                                                )
+                                                .modifier(NavyThumbnail(selected: (selected == viewModel.screenThumbnails[index].screen)))
                                                 Group {
                                                     Image(systemName: "circle.fill")
                                                         .font(.system(size: count == 1 ? 62 : 31))
-                                                        .foregroundStyle(.white)
+                                                        .foregroundStyle(Theme.navy1)
                                                         .opacity((selected == viewModel.screenThumbnails[index].screen) ? 1.0 : 0.0)
                                                     Image(systemName: "checkmark.circle.fill")
                                                         .font(.system(size: count == 1 ? 54 : 27))
-                                                        .foregroundStyle(.green)
+                                                        .foregroundStyle(Theme.ice)
                                                         .opacity((selected == viewModel.screenThumbnails[index].screen) ? 1.0 : 0.0)
-                                                }.offset(x: count == 1 ? 270 : 120, y: count == 1 ? 130 : 50)
+                                                }.offset(x: count == 1 ? 200 : 120, y: count == 1 ? 95 : 50)
                                             }
                                         }).buttonStyle(.plain)
                                     }
@@ -89,34 +85,27 @@ struct ScreenSelector: View {
                         }
                     }
                 }
-                .frame(height: 445)
+                .frame(height: 320)
                 
+                NavyDivider().padding(.horizontal, 16)
+                OptionsView()
                 HStack(spacing: 4) {
                     Button(action: {
                         viewModel.setupStreams()
                     }, label: {
-                        VStack{
-                            Image(systemName: "arrow.clockwise.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.blue)
-                            Text("Refresh")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
+                        Label("Refresh", systemImage: "arrow.clockwise")
                         
-                    }).buttonStyle(.plain)
-                    Spacer()
-                    OptionsView().padding(.leading, 18)
+                    }).buttonStyle(NavyButton(border: Theme.mute))
                     Spacer()
                     Button(action: {
                         isPopoverShowing = true
                     }, label: {
                         Image(systemName: "timer")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.blue)
                     })
-                    .buttonStyle(.plain)
-                    .padding(.top, 42.5)
+                    .buttonStyle(NavyButton(border: Theme.mute, height: 28))
+                    .help("Stop after")
+                    .accessibilityLabel("Stop after")
+
                     .popover(isPresented: $isPopoverShowing, arrowEdge: .bottom, content: {
                         HStack {
                             Text(" Stop after".local)
@@ -128,29 +117,30 @@ struct ScreenSelector: View {
                         }
                         .fixedSize()
                         .padding()
+                        .font(.system(size: 13))
+                        .background(Theme.navy2)
+                        .modifier(NavyPanel())
                     })
                     Button(action: {
                         startRecording()
                     }, label: {
-                        VStack{
-                            Image(systemName: "record.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.red)
-                            Text("Start")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
-                    })
-                    .buttonStyle(.plain)
+                        Text("Record")
+                    }).buttonStyle(NavyButton(fill: Theme.blue, foreground: Theme.navy0))
                     .disabled(selected == nil)
-                }.padding(.horizontal, 40)
+                }.padding(.horizontal, 16)
                 Spacer()
             }
-            .padding(.top, -5)
+            .padding(.top, 12)
         }.frame(width: 780, height:555)
+    .font(.system(size: 13))
+    .tint(Theme.blue)
+    .background(Theme.navy2)
+    .modifier(NavyPanel())
+    .modifier(RecordingStartGate())
     }
     
     func startRecording() {
+        guard SCContext.canStartRecording else { return }
         closeAllWindow()
         if let screen = selected {
             appDelegate.createCountdownPanel(screen: screen) {
@@ -177,7 +167,7 @@ class ScreenSelectorViewModel: NSObject, ObservableObject, SCStreamDelegate, SCS
         if CMSampleBufferGetImageBuffer(sampleBuffer) == nil { return }
         var nsImage = sampleBuffer.nsImage
         if let index = self.streams.firstIndex(of: stream), index + 1 <= self.allScreens.count {
-            if nsImage == nil { nsImage = SCContext.getWallpaper(self.allScreens[index]) ?? NSImage.unknowScreen }
+            if nsImage == nil { nsImage = SCContext.getWallpaper(self.allScreens[index]) ?? (resourceImage(named: "unknowScreen") ?? NSImage()) }
             let currentScreen = self.allScreens[index]
             let thumbnail = ScreenThumbnail(image: nsImage!, screen: currentScreen)
             DispatchQueue.main.async {

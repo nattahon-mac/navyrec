@@ -1,6 +1,6 @@
 //
 //  BundleSelector.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/4/28.
 //

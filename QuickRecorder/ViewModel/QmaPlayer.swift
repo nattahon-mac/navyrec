@@ -1,6 +1,6 @@
 //
 //  qmaPlayer.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/6/28.
 //
@@ -88,7 +88,7 @@ struct qmaPlayerView: View {
                             Rectangle()
                                 .cornerRadius(6)
                                 .foregroundColor(.secondary.opacity(overSave ? 0.1 : 0.00001))
-                            Image("save")
+                            Image("save", bundle: .navyResources).renderingMode(.template)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 16.5)
@@ -558,7 +558,7 @@ class AudioPlayerManager: ObservableObject {
         }
     }
     
-    func saveFile(_ url: URL, saveAsMP3: Bool = false) {
+    func saveFile(_ url: URL, saveAsMP3: Bool = false, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
         var url = url
         if url.pathExtension == "mp3" { url = url.deletingPathExtension() }
         if url.pathExtension != self.fileFormat { url = url.appendingPathExtension(self.fileFormat) }
@@ -568,13 +568,13 @@ class AudioPlayerManager: ObservableObject {
         Thread.detachNewThread {
             DispatchQueue.main.async { self.exporting = true }
             do {
-                guard let audioFile1 = self.audioFile1, let audioFile2 = self.audioFile2 else { return }
+                guard let audioFile1 = self.audioFile1, let audioFile2 = self.audioFile2 else { throw SCContext.recordingError("Missing audio tracks.") }
                 self.playerNode1.scheduleFile(audioFile1, at: nil, completionHandler: nil)
                 self.playerNode2.scheduleFile(audioFile2, at: nil, completionHandler: nil)
                 
                 let audioSettings = SCContext.updateAudioSettings(format: self.fileEncoder)
                 let outputFormat = self.playerNode1.outputFormat(forBus: 0)
-                let outputFile = try AVAudioFile(forWriting: url, settings: audioSettings, commonFormat: .pcmFormatFloat32, interleaved: false)
+                var outputFile: AVAudioFile? = try AVAudioFile(forWriting: url, settings: audioSettings, commonFormat: .pcmFormatFloat32, interleaved: false)
                 self.engine.stop()
                 try self.engine.enableManualRenderingMode(.offline, format: outputFormat, maximumFrameCount: 4096)
                 try self.engine.start()
@@ -590,7 +590,7 @@ class AudioPlayerManager: ObservableObject {
                     let status = try self.engine.renderOffline(framesToRender, to: buffer)
                     switch status {
                     case .success:
-                        try outputFile.write(from: buffer)
+                        try outputFile?.write(from: buffer)
                     case .insufficientDataFromInputNode, .cannotDoInCurrentContext:
                         // Handle the cases where rendering cannot proceed
                         break
@@ -604,32 +604,32 @@ class AudioPlayerManager: ObservableObject {
                 self.engine.stop()
                 self.setupAudioEngine()
                 
-                let title = "Recording Completed".local
-                var body = String(format: "File saved to: %@".local, url.path.removingPercentEncoding!)
-                let id = "quickrecorder.completed.\(UUID().uuidString)"
-                
-                if saveAsMP3 {
-                    let oldURL = url
-                    let newURl = url.deletingLastPathComponent().appendingPathComponent(lastComp).deletingPathExtension().appendingPathExtension("mp3")
-                    body = String(format: "File saved to: %@".local, newURl.path.removingPercentEncoding!)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        Task {
-                            do {
-                                try await SCContext.m4a2mp3(inputUrl: oldURL, outputUrl: newURl)
-                                try? fd.removeItem(at: oldURL)
-                            } catch {
-                                SCContext.showNotification(title: "Failed to save file".local, body: "\(error.localizedDescription)", id: "quickrecorder.error.\(UUID().uuidString)")
-                                return
-                            }
+                outputFile = nil // Flush container headers before conversion or validation.
+                let renderedURL = url
+                Task { @MainActor in
+                    defer { self.exporting = false }
+                    do {
+                        var savedURL = renderedURL
+                        if saveAsMP3 {
+                            savedURL = renderedURL.deletingLastPathComponent().appendingPathComponent(lastComp)
+                                .deletingPathExtension().appendingPathExtension("mp3")
+                            try await SCContext.m4a2mp3(inputUrl: renderedURL, outputUrl: savedURL)
+                            try await SCContext.validateRecording(savedURL)
+                            try? fd.removeItem(at: renderedURL)
                         }
+                        try await SCContext.presentSavedRecording(savedURL, image: resourceImage(named: "audioIcon"), archive: false)
+                        completion(.success(()))
+                    } catch {
+                        SCContext.showNotification(title: "Failed to save file".local, body: error.localizedDescription,
+                                                   id: "navyrec.error.\(UUID().uuidString)")
+                        completion(.failure(error))
                     }
                 }
-                
-                SCContext.showNotification(title: title, body: body, id: id)
             } catch {
-                SCContext.showNotification(title: "Failed to save file".local, body: "\(error.localizedDescription)", id: "quickrecorder.error.\(UUID().uuidString)")
+                SCContext.showNotification(title: "Failed to save file".local, body: error.localizedDescription,
+                                           id: "navyrec.error.\(UUID().uuidString)")
+                DispatchQueue.main.async { self.exporting = false; completion(.failure(error)) }
             }
-            DispatchQueue.main.async { self.exporting = false }
         }
     }
     
@@ -674,5 +674,5 @@ class AudioPlayerManager: ObservableObject {
 }
 
 extension UTType {
-    static let qma = UTType(exportedAs: "com.lihaoyun6.QuickRecorder.qma")
+    static let qma = UTType(exportedAs: "io.github.navyrec.qma")
 }

@@ -1,6 +1,6 @@
 //
 //  AVContext.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/4/27.
 //
@@ -60,6 +60,7 @@ class AVOutputClass: NSObject, AVCaptureFileOutputRecordingDelegate, AVCaptureVi
     }
     
     public func startRecording(with device: AVCaptureDevice, mute: Bool = false, preset: AVCaptureSession.Preset = .high, didOutput: Bool = true) {
+        guard !RecordingLifecycle.shared.isFinalizing, !didOutput || SCContext.canStartRecording else { return }
         output = AVCaptureMovieFileOutput()
         dataOutput = AVCaptureVideoDataOutput()
         dataOutput.setSampleBufferDelegate(self, queue: .global())
@@ -118,6 +119,8 @@ class AVOutputClass: NSObject, AVCaptureFileOutputRecordingDelegate, AVCaptureVi
     }
 
     public func stopRecording() {
+        guard !RecordingLifecycle.shared.isFinalizing, output.isRecording else { return }
+        RecordingLifecycle.shared.isFinalizing = true
         if SCContext.captureSession.isRunning {
             output.stopRecording()
             SCContext.captureSession.stopRunning()
@@ -141,14 +144,26 @@ class AVOutputClass: NSObject, AVCaptureFileOutputRecordingDelegate, AVCaptureVi
     }
 
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        let content = UNMutableNotificationContent()
-        content.title = "Recording Completed".local
-        content.body = String(format: "File saved to: %@".local, outputFileURL.path)
-        content.sound = UNNotificationSound.default
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let request = UNNotificationRequest(identifier: "quickrecorder.completed.\(UUID().uuidString)", content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error { print("Notification failed to send：\(error.localizedDescription)") }
+        DispatchQueue.main.async {
+            RecordingLifecycle.shared.isFinalizing = true
+            Task { @MainActor in
+                defer {
+                    SCContext.streamType = nil
+                    SCContext.finishLifecycle()
+                }
+                do {
+                    if let error = error,
+                       (error as NSError).userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool != true {
+                        throw error
+                    }
+                    RecordingArchive.lastSource = "iPhone"
+                    try await SCContext.presentSavedRecording(outputFileURL)
+                } catch {
+                    RecordingToast.shared.show("Recording failed — \(error.localizedDescription)", url: outputFileURL, failed: true)
+                    SCContext.showNotification(title: "Failed to save file".local, body: error.localizedDescription,
+                                               id: "navyrec.error.\(UUID().uuidString)")
+                }
+            }
         }
     }
 }

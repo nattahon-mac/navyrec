@@ -1,6 +1,6 @@
 //
 //  WinSelector.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/4/17.
 //
@@ -25,7 +25,7 @@ struct WinSelector: View {
     
     var body: some View {
         ZStack {
-            VStack(spacing: 15) {
+            VStack(spacing: 10) {
                 if #available(macOS 15, *) {
                     Text("Please select the window(s) to record").offset(y: 12)
                 } else {
@@ -38,7 +38,7 @@ struct WinSelector: View {
                         }, label: {
                             ZStack {
                                 Color.white.opacity(0.0001)
-                                Image("window.select")
+                                Image(systemName: "macwindow.and.cursorarrow")
                                     .resizable().scaledToFit()
                             }.frame(width: 20, height: 20)
                         })
@@ -92,12 +92,12 @@ struct WinSelector: View {
                                                                 .frame(width: 160, height: 90, alignment: .center)
                                                             Image(systemName: "circle.fill")
                                                                 .font(.system(size: 31))
-                                                                .foregroundStyle(.white)
+                                                                .foregroundStyle(Theme.navy1)
                                                                 .opacity(selected.contains(item.window) ? 1.0 : 0.0)
                                                                 .offset(x: 55, y: 25)
                                                             Image(systemName: "checkmark.circle.fill")
                                                                 .font(.system(size: 27))
-                                                                .foregroundStyle(.green)
+                                                                .foregroundStyle(Theme.ice)
                                                                 .opacity(selected.contains(item.window) ? 1.0 : 0.0)
                                                                 .offset(x: 55, y: 25)
                                                             Image(nsImage: SCContext.getAppIcon(item.window.owningApplication!)!)
@@ -108,15 +108,10 @@ struct WinSelector: View {
                                                         }
                                                         .padding(5)
                                                         .padding(.vertical, 5)
-                                                        .background(
-                                                            Rectangle()
-                                                                .foregroundStyle(.blue)
-                                                                .cornerRadius(5)
-                                                                .opacity(selected.contains(item.window) ? 0.2 : 0.0001)
-                                                        )
+                                                        .modifier(NavyThumbnail(selected: selected.contains(item.window)))
                                                         Text(item.window.title!)
                                                             .font(.system(size: 12))
-                                                            .foregroundStyle(.secondary)
+                                                            .foregroundStyle(Theme.text)
                                                             .lineLimit(1)
                                                             .truncationMode(.tail)
                                                             .frame(width: 160)
@@ -135,7 +130,7 @@ struct WinSelector: View {
                         .onAppear{ display = screen }
                     }
                 }
-                .frame(height: 445)
+                .frame(height: 320)
                 .padding(.horizontal, 10)
                 .onChange(of: selectedTab) { _ in selected.removeAll() }
                 .onReceive(viewModel.$isReady) { isReady in
@@ -147,40 +142,35 @@ struct WinSelector: View {
                         }
                     }
                 }
+                NavyDivider().padding(.horizontal, 16)
+                OptionsView()
                 HStack(spacing: 4) {
                     Button(action: {
                         self.viewModel.setupStreams(filter: !disableFilter, capture: !donotCapture)
                         self.selected.removeAll()
                     }, label: {
-                        VStack{
-                            Image(systemName: "arrow.clockwise.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.blue)
-                            Text("Refresh")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
+                        Label("Refresh", systemImage: "arrow.clockwise")
                         
-                    }).buttonStyle(.plain)
+                    }).buttonStyle(NavyButton(border: Theme.mute))
                     Button(action: {
                         isPopoverShowing2 = true
                     }, label: {
                         Image(systemName: "chevron.down")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Theme.text)
                     })
-                    .buttonStyle(.plain)
-                    .padding(.top, 42.5)
+                    .buttonStyle(NavyButton(border: Theme.mute, height: 28))
+                    .accessibilityLabel("Window filter options")
                     .popover(isPresented: $isPopoverShowing2, arrowEdge: .bottom, content: {
                         VStack(alignment: .leading) {
                             Toggle(isOn: $disableFilter) { Text("Show Windows with No Title") }
-                                .toggleStyle(.checkbox)
+                                .toggleStyle(.checkbox).tint(Theme.blue)
                                 .onChange(of: disableFilter) { _ in
                                     self.viewModel.setupStreams(filter: !disableFilter, capture: !donotCapture)
                                     self.selected.removeAll()
                                 }
                             Toggle(isOn: $donotCapture) { Text("Don't Create Thumbnails") }
-                                .toggleStyle(.checkbox)
+                                .toggleStyle(.checkbox).tint(Theme.blue)
                                 .onChange(of: donotCapture) { _ in
                                     self.viewModel.setupStreams(filter: !disableFilter, capture: !donotCapture)
                                     self.selected.removeAll()
@@ -188,19 +178,20 @@ struct WinSelector: View {
                         }
                         .fixedSize()
                         .padding()
+                        .font(.system(size: 13))
+                        .background(Theme.navy2)
+                        .modifier(NavyPanel())
                     })
-                    Spacer()
-                    OptionsView()
                     Spacer()
                     Button(action: {
                         isPopoverShowing = true
                     }, label: {
                         Image(systemName: "timer")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.blue)
                     })
-                    .buttonStyle(.plain)
-                    .padding(.top, 42.5)
+                    .buttonStyle(NavyButton(border: Theme.mute, height: 28))
+                    .help("Stop after")
+                    .accessibilityLabel("Stop after")
+
                     .popover(isPresented: $isPopoverShowing, arrowEdge: .bottom, content: {
                         HStack {
                             Text(" Stop after".local)
@@ -212,24 +203,19 @@ struct WinSelector: View {
                         }
                         .fixedSize()
                         .padding()
+                        .font(.system(size: 13))
+                        .background(Theme.navy2)
+                        .modifier(NavyPanel())
                     })
                     Button(action: {
                         startRecording()
                     }, label: {
-                        VStack{
-                            Image(systemName: "record.circle.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.red)
-                            Text("Start")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 12))
-                        }
-                    })
-                    .buttonStyle(.plain)
+                        Text("Record")
+                    }).buttonStyle(NavyButton(fill: Theme.blue, foreground: Theme.navy0))
                     .disabled(selected.count < 1)
-                }.padding(.horizontal, 40)
+                }.padding(.horizontal, 16)
                 Spacer()
-            }.padding(.top, -5)
+            }.padding(.top, 12)
         }
         .frame(width: 780, height:555)
         .toolbar {
@@ -237,15 +223,21 @@ struct WinSelector: View {
                 HoverButton(action: {
                     WindowHighlighter.shared.registerMouseMonitor()
                 }, label: {
-                    Image("window.select")
+                    Image(systemName: "macwindow.and.cursorarrow")
                         .resizable().scaledToFit()
                         .frame(width: 20)
                 }).help("Select Window Directly")
             }
         }
+    .font(.system(size: 13))
+    .tint(Theme.blue)
+    .background(Theme.navy2)
+    .modifier(NavyPanel())
+    .modifier(RecordingStartGate())
     }
     
     func startRecording() {
+        guard SCContext.canStartRecording else { return }
         closeAllWindow()
         appDelegate.createCountdownPanel(screen: display) {
             SCContext.autoStop = autoStop
@@ -269,7 +261,7 @@ class WindowSelectorViewModel: NSObject, ObservableObject, SCStreamDelegate, SCS
     
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         if CMSampleBufferGetImageBuffer(sampleBuffer) == nil { return }
-        let nsImage = sampleBuffer.nsImage ?? NSImage.unknowScreen
+        let nsImage = sampleBuffer.nsImage ?? (resourceImage(named: "unknowScreen") ?? NSImage())
         if let index = self.streams.firstIndex(of: stream), index + 1 <= self.allWindows.count {
             let currentWindow = self.allWindows[index]
             let thumbnail = WindowThumbnail(image: nsImage, window: currentWindow)
@@ -326,7 +318,7 @@ class WindowSelectorViewModel: NSObject, ObservableObject, SCStreamDelegate, SCS
                         }
                     } else {
                         for w in self.allWindows {
-                            let thumbnail = WindowThumbnail(image: NSImage.unknowScreen, window: w)
+                            let thumbnail = WindowThumbnail(image: (resourceImage(named: "unknowScreen") ?? NSImage()), window: w)
                             guard let displays = SCContext.availableContent?.displays.filter({ NSIntersectsRect(w.frame, $0.frame) }) else { break }
                             for d in displays {
                                 DispatchQueue.main.async {

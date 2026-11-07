@@ -1,6 +1,6 @@
 //
 //  PreviewView.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/12/10.
 //

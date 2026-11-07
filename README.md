@@ -1,59 +1,49 @@
-#
-<p align="center">
-<img src="./QuickRecorder/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="200" height="200" />
-<h1 align="center">QuickRecorder</h1>
-<h3 align="center">A lightweight and high-performance screen recorder for macOS<br><a href="./README_zh.md">[中文版本]</a><br><a href="https://lihaoyun6.github.io/quickrecorder/">[Landing Page]</a>
-</p>
+# NavyRec
 
-## Screenshot
-<p align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./img/preview_en_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="./img/preview_en.png">
-  <img alt="QuickRecorder Screenshots" src="./img/preview_en.png" width="840"/>
-</picture>
-</p>
+A macOS screen and meeting recorder that **always stops when you tell it to and never loses a take**, with automatic local transcripts.
 
-## Installation and Usage
-### System Requirements:
-- macOS 12.3 and Later
+NavyRec is a fork of [QuickRecorder 1.6.9](https://github.com/lihaoyun6/QuickRecorder) by lihaoyun6, licensed under **AGPL-3.0** (see [LICENSE](LICENSE)). All credit for the original recorder goes to the upstream project.
 
-### Install:
-Download the latest installation file [here](../../releases/latest) or install via Homebrew:
+## Highlights
 
-```bash
-brew install lihaoyun6/tap/quickrecorder
+- **Reliable stop**: left-click the menu-bar dot, press ⌘⇧2, use the Stop button, or run `open navyrec://stop`
+- **No lost takes**: a new recording can't start until the previous file has finished writing and been checked
+- **Crash-safe**: recordings are written as fragmented MP4, so a crash or force quit still leaves a playable file, which is recovered the next time NavyRec starts
+- **Quick record** (⌘⇧1 or `navyrec://quick`): records the screen under the pointer plus mic and system audio, with no picker and no countdown. The meeting preset (30 fps, H.265) makes files about 6x smaller
+- **Audio only** (`navyrec://audio`)
+- **Markers** (⌘⇧M or `navyrec://marker`): flag important moments while recording
+- **One folder per recording**: `~/Desktop/NavyRec/YYYY-MM-DD HHmm <Source>/` with `info.json`, plus an `index.jsonl` for the whole library
+- **Automatic transcript** (optional, runs on your Mac): whisper.cpp large-v3-turbo with Silero VAD writes `transcript.txt` and `transcript.srt`
+- **Automatic summary** (optional): if the [Codex CLI](https://github.com/openai/codex) is installed, NavyRec writes `summary.md` with an overview, topics, decisions, action items and marked moments
+- Dark navy UI; the recording panels are hidden from the capture
+
+See [FEATURES.md](FEATURES.md) for the full list.
+
+## Install (prebuilt)
+
+1. Download `NavyRec-x.y.z-macOS.zip` from [Releases](../../releases) and unzip it.
+2. Double-click **Install-NavyRec.command**, or run it in Terminal. It copies the app to /Applications and can also set up transcripts (Homebrew `ffmpeg` and `whisper-cpp`, plus about 550 MB of models from Hugging Face, each checked against a SHA-256 hash).
+3. On the first recording, allow Screen & System Audio Recording, the Microphone and the save folder.
+
+The app is ad-hoc signed and not notarized. If macOS blocks it, right-click the app and choose **Open**, or run `xattr -dr com.apple.quarantine /Applications/NavyRec.app`.
+
+Requires macOS 14 or later (tested on macOS 27, Apple silicon).
+
+## Privacy
+
+NavyRec has no network code, no analytics and no update checker. Recordings and transcripts never leave your Mac. The one exception is the optional summary step: it sends the transcript to whatever Codex CLI account you are logged into. Uninstall or log out of Codex to turn summaries off.
+
+## Build from source
+
+```sh
+./build.sh                 # SwiftPM + Command Line Tools, no Xcode needed → build/NavyRec.app
+./install.sh               # copy to /Applications
+./scripts/make-release.sh  # → dist/NavyRec-<version>-macOS.zip
+Tests/run-finalization.sh
 ```
 
-### Features/Usage:
-- You can use QuickRecorder to record your screens / windows / applications / mobile devices... etc.
+The first build needs network access to fetch SwiftPM dependencies. See [NOTES-PORT.md](NOTES-PORT.md) for porting notes and the source map.
 
-- QuickRecorder supports driver-free audio loopback recording, mouse highlighting, screen magnifier and many more useful features.  
-- The new **"[Presenter Overlay](https://support.apple.com/guide/facetime/presenter-overlay-video-conferencing-fctm6333f4bd/mac)"** in macOS 14 was fully supported by QuickRecorder, which can overlay the camera in real time on your recording *(macOS 12/13 can only use camera floating window)*  
-- QuickRecorder is able to record `HEVC with Alpha` video format, that can contain alpha channel in the output file *(currently only iMovie and FCPX support this feature)*  
+## License
 
-## Q&A
-**1. Where can I reopen the main panel after closing it?**
-> Click the Dock tile or Menubar icon of QuickRecorder to reopen the main panel at any time.
-
-**2. Why does QuickRecorder not a sandbox app?**
-> QuickRecorder has no plans to be uploaded to the App Store, so it does not need to be designed as a sandbox app.  
-
-**3. How to independently control the volume of system sound and sound from microphone in other video editor?**
-> QuickRecorder will merge the audio input from the microphone to the main audio track after recording by default. If you need to edit the video, you can turn off the `Record Microphone to Main Track` option in the settings panel. After turning off, the system sound and sound from microphone will be recorded into two audio tracks and can be edited independently.  
-
-## Donate
-<img src="./img/donate.png" width="350"/>
-
-## Thanks
-[Azayaka](https://github.com/Mnpn/Azayaka) @Mnpn
-> The source of inspiration and part of the code of the screen recording engine comes from the Azayaka project, and I am also one of the code contributors to this project
-
-[KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) @sindresorhus  
-> QuickRecorder uses this swift library to handle shortcut key events  
-
-[SwiftLAME](https://github.com/hidden-spectrum/SwiftLAME) @Hidden Spectrum
-> QuickRecorder uses this swift library to handle MP3 output
-
-[ChatGPT](https://chat.openai.com) @OpenAI
-> Note: Part of the code in this project was generated or refactored using ChatGPT.
+AGPL-3.0, inherited from QuickRecorder. If you distribute modified builds, you must also make your source available under the same license.

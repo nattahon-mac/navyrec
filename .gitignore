@@ -89,3 +89,8 @@ fastlane/test_output
 
 iOSInjectionProject/
 .DS_Store
+.build/
+build/
+.swiftpm/
+.build/
+dist/

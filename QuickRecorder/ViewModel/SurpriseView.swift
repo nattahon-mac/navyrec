@@ -1,6 +1,6 @@
 //
 //  SurpriseView.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/12/12.
 //
@@ -84,7 +84,7 @@ struct SurpriseView: NSViewRepresentable {
             cell.alphaRange = 0.6
             cell.alphaSpeed = alphaSpeed
             cell.emissionRange = CGFloat.pi / 2.5
-            cell.contents = NSImage(named: imageName)?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+            cell.contents = resourceImage(named: imageName)?.cgImage(forProposedRect: nil, context: nil, hints: nil)
             return cell
         }
         

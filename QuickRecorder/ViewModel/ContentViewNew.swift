@@ -1,223 +1,158 @@
-//
-//  ContentView.swift
-//  QuickRecorder
-//
-//  Created by apple on 2024/4/16.
-//
-
 import SwiftUI
 import AVFoundation
-import ScreenCaptureKit
 
+/// Source choice is staged here; Record enters the existing picker/countdown flow.
 struct ContentViewNew: View {
-    @State private var window: NSWindow?
-    @State private var xmarkGlowing = false
-    @State private var infoGlowing = false
-    @State private var micGlowing = false
-    @State private var isPopoverShowing = false
-    @State private var micList = SCContext.getMicrophone()
-    @AppStorage("enableAEC") private var enableAEC: Bool = false
-    @AppStorage("recordMic") private var recordMic: Bool = false
-    @AppStorage("micDevice") private var micDevice: String = "default"
-    @AppStorage("showOnDock") private var showOnDock: Bool = true
-    @AppStorage("showMenubar") private var showMenubar: Bool = false
+    @AppStorage("recordSource") private var source = "Screen"
+    @State private var devicePopover = false
+    @State private var cameraPopover = false
+    @State private var cameraOn = SCContext.isCameraRunning()
+    @State private var devices = SCContext.getiDevice()
+    @State private var microphones = SCContext.getMicrophone()
+    @AppStorage("micDevice") private var micDevice = "default"
+    @AppStorage("archiveFolders") private var archiveFolders = true
+    @AppStorage("autoTranscribe") private var autoTranscribe = true
+    @AppStorage("autoSummary") private var autoSummary = true
+    @AppStorage("quickMeetingPreset") private var quickMeetingPreset = true
+    @AppStorage("recordMic") private var mic = false
+    @AppStorage("recordWinSound") private var system = true
+    @AppStorage("frameRate") private var fps = 60
+    @AppStorage("videoQuality") private var quality = 1.0
+    @AppStorage("videoFormat") private var format = "mp4"
+    @AppStorage("showMouse") private var cursor = true
+    private let sources = [("Screen", "display"), ("Window", "macwindow"), ("App", "macwindow.on.rectangle"), ("Area", "rectangle.dashed"), ("Audio only", "waveform")]
 
-    var appDelegate = AppDelegate.shared
-    
     var body: some View {
-        ZStack {
-            ZStack {
-                if isTodayChristmas() && isAllowChristmas() {
-                    let images = ["snowflake1", "snowflake2", "snowflake3", "christmasTree1", "christmasTree2"]
-                    SurpriseView(snowflakes: images, width: 520, height: 200, velocity: 16, lifetime: 30, alphaSpeed: -0.05)
-                } else if isChineseNewYear() && isAllowChineseNewYear() {
-                    let images = ["fuzi1", "fuzi2", "fuzi3", "hongbao1", "hongbao2", "hongbao3", "bianpao1", "bianpao2", "bianpao3"]
-                    SurpriseView(snowflakes: images, width: 520, height: 200, velocity: 16, lifetime: 30, alphaSpeed: -0.05)
+        HStack(spacing: 4) {
+            HStack(spacing: 2) {
+                ForEach(sources, id: \.0) { name, icon in sourceButton(name, icon) }
+                if !devices.isEmpty { sourceButton("iDevice", "apps.ipad") }
+            }.padding(2).background(Theme.navy0.opacity(0.4)).clipShape(RoundedRectangle(cornerRadius: 11))
+            Divider().frame(height: 20)
+            Button { mic.toggle(); if mic { Task { await SCContext.performMicCheck() } } } label: {
+                Label { Text("Mic") } icon: { Image(systemName: mic ? "mic.fill" : "mic.slash").frame(width: 18) }
+            }.buttonStyle(NavyButton(selected: mic)).accessibilityValue(mic ? "On" : "Off").disabled(microphones.isEmpty)
+            if microphones.count > 1 {
+                Menu {
+                    Picker("Microphone", selection: $micDevice) {
+                        Text("System Default").tag("default")
+                        ForEach(microphones, id: \.uniqueID) { Text($0.localizedName).tag($0.localizedName) }
+                    }.pickerStyle(.inline)
+                } label: { Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)) }
+                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().frame(width: 18)
+                    .help("Choose microphone").accessibilityLabel("Choose microphone")
+                    .onChange(of: micDevice) { _ in mic = true; Task { await SCContext.performMicCheck() } }
+            }
+            Button { system.toggle() } label: {
+                Label { Text("System") } icon: { Image(systemName: system || source == "Audio only" ? "speaker.wave.2.fill" : "speaker.slash").frame(width: 22) }
+            }.buttonStyle(NavyButton(selected: system || source == "Audio only"))
+                .disabled(source == "Audio only").help(source == "Audio only" ? "Audio-only capture includes system audio" : "System audio")
+                .accessibilityValue(system || source == "Audio only" ? "On" : "Off")
+            Button {
+                if cameraOn { AppDelegate.shared.closeCamera(); SCContext.recordCam = ""; cameraOn = false }
+                else { cameraPopover = true }
+            } label: { Image(systemName: cameraOn ? "video.fill" : "video") }
+                .buttonStyle(NavyButton(selected: cameraOn))
+                .help("Camera overlay").accessibilityLabel("Camera overlay")
+                .popover(isPresented: $cameraPopover) {
+                    CameraPopoverView(closePopover: {
+                        cameraPopover = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { cameraOn = !SCContext.recordCam.isEmpty }
+                    })
                 }
-            }.opacity(0.5)
-            VStack {
-                HStack {
-                    Button(action: {
-                        closeMainWindow()
-                        appDelegate.createNewWindow(view: ScreenSelector(), title: "Screen Selector".local)
-                    }, label: {
-                        SelectorView(title: "Screen".local, symbol: "tv.inset.filled").cornerRadius(8)
-                    }).buttonStyle(.plain)
-                    Divider().frame(height: 70)
-                    Button(action: {
-                        closeMainWindow()
-                        SCContext.updateAvailableContent {
-                            DispatchQueue.main.async {
-                                appDelegate.showAreaSelector(size: NSSize(width: 600, height: 450))
-                                var currentDisplay = SCContext.getSCDisplayWithMouse()
-                                mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .rightMouseDown, .leftMouseDown, .otherMouseDown]) { event in
-                                    let display = SCContext.getSCDisplayWithMouse()
-                                    if display != currentDisplay {
-                                        currentDisplay = display
-                                        closeAllWindow()
-                                        appDelegate.showAreaSelector(size: NSSize(width: 600, height: 450))
-                                    }
-                                }
-                            }
+            Menu("Options") {
+                Picker("Frame rate", selection: $fps) { ForEach([24, 30, 60, 120], id: \.self) { Text("\($0) fps").tag($0) } }
+                Picker("Quality", selection: $quality) {
+                    Text("Low").tag(0.3); Text("Medium").tag(0.7); Text("High").tag(1.0)
+                }
+                Toggle("Show cursor", isOn: $cursor)
+                Picker("Format", selection: $format) { Text("MP4").tag("mp4"); Text("MOV").tag("mov") }
+                Button("Save folder…") { chooseFolder() }
+                Toggle("Each recording in its own folder", isOn: $archiveFolders)
+                Toggle("Auto transcribe (Thai)", isOn: $autoTranscribe).disabled(!archiveFolders)
+                Toggle("Auto summary (Codex)", isOn: $autoSummary).disabled(!archiveFolders || !autoTranscribe)
+                Toggle("Quick = meeting preset (30 fps · H.265 · 1x)", isOn: $quickMeetingPreset)
+                Divider()
+                Button("Preferences…") { AppDelegate.shared.openSettingPanel() }
+                Button("Quit NavyRec") { NSApp.terminate(nil) }
+            }.menuStyle(.borderlessButton).fixedSize().padding(.horizontal, 8)
+            Divider().frame(height: 20)
+            Button("Record", action: begin).buttonStyle(NavyButton(fill: Theme.blue)).keyboardShortcut(.defaultAction)
+            Button { AppDelegate.shared.quickRecord() } label: {
+                HStack(spacing: 6) {
+                    Circle().fill(Color.white).frame(width: 10, height: 10)
+                    Text("Quick").fontWeight(.semibold)
+                }
+            }.buttonStyle(NavyButton(fill: Theme.recFill))
+                .help("Record full screen + mic + system audio now (⌘⇧1)")
+                .accessibilityLabel("Quick record full screen")
+                .popover(isPresented: $devicePopover) { iDevicePopoverView(closePopover: { devicePopover = false }) }
+        }.padding(6).font(.system(size: 13)).modifier(NavyPanel())
+            .modifier(RecordingStartGate())
+            .onReceive(NotificationCenter.default.publisher(for: AVCaptureDevice.wasConnectedNotification)) { _ in refreshDevices() }
+            .onReceive(NotificationCenter.default.publisher(for: AVCaptureDevice.wasDisconnectedNotification)) { _ in refreshDevices() }
+            .onAppear(perform: refreshDevices)
+    }
+
+    private func refreshDevices() {
+        devices = SCContext.getiDevice()
+        microphones = SCContext.getMicrophone()
+        if devices.isEmpty && source == "iDevice" { source = "Screen" }
+        if microphones.isEmpty { mic = false }
+        if !microphones.contains(where: { $0.localizedName == micDevice }) { micDevice = "default" }
+    }
+
+    private func sourceButton(_ name: String, _ icon: String) -> some View {
+        // Icon + caption so each mode reads without hovering.
+        let caption = ["Audio only": "Audio", "iDevice": "iPhone"][name] ?? name
+        return Button { source = name } label: {
+            VStack(spacing: 3) {
+                Image(systemName: icon).font(.system(size: 15)).frame(height: 18)
+                Text(caption.local).font(.system(size: 10, weight: .medium))
+            }.frame(minWidth: 44)
+        }
+            .buttonStyle(NavyButton(selected: source == name, height: 48))
+            .help(name).accessibilityLabel(name).accessibilityValue(source == name ? "Selected" : "")
+    }
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
+        if panel.runModal() == .OK, let url = panel.url { ud.set(url.path, forKey: "saveDirectory") }
+    }
+    private func begin() {
+        guard SCContext.canStartRecording else { return }
+        refreshDevices()
+        let app = AppDelegate.shared
+        if source == "iDevice" { devicePopover = true; return }
+        closeMainWindow()
+        switch source {
+        case "Window": app.createNewWindow(view: WinSelector(), title: "Window Selector".local)
+        case "App": app.createNewWindow(view: AppSelector(), title: "App Selector".local)
+        case "Area":
+            SCContext.updateAvailableContent {
+                DispatchQueue.main.async {
+                    app.showAreaSelector(size: NSSize(width: 600, height: 450))
+                    var currentDisplay = SCContext.getSCDisplayWithMouse()
+                    mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .rightMouseDown, .leftMouseDown, .otherMouseDown]) { _ in
+                        let display = SCContext.getSCDisplayWithMouse()
+                        if display != currentDisplay {
+                            currentDisplay = display; closeAllWindow()
+                            app.showAreaSelector(size: NSSize(width: 600, height: 450))
                         }
-                    }, label: {
-                        SelectorView(title: "Screen Area".local, symbol: "viewfinder").cornerRadius(8)
-                    }).buttonStyle(.plain)
-                    Divider().frame(height: 70)
-                    Button(action: {
-                        closeMainWindow()
-                        appDelegate.createNewWindow(view: AppSelector(), title: "App Selector".local)
-                    }, label: {
-                        SelectorView(title: "Application".local, symbol: "app", overlayer: "App")
-                            .cornerRadius(8)
-                    }).buttonStyle(.plain)
-                    Divider().frame(height: 70)
-                    Button(action: {
-                        closeMainWindow()
-                        appDelegate.createNewWindow(view: WinSelector(), title: "Window Selector".local)
-                    }, label: {
-                        SelectorView(title: "Window".local, symbol: "macwindow").cornerRadius(8)
-                    }).buttonStyle(.plain)
+                    }
                 }
-                HStack(spacing: 27) {
-                    VStack { Divider().frame(width: 100) }
-                    VStack { Divider().frame(width: 100) }
-                    VStack { Divider().frame(width: 100) }
-                    VStack { Divider().frame(width: 100) }
+            }
+        case "Audio only":
+            SCContext.updateAvailableContent {
+                DispatchQueue.main.async {
+                    refreshDevices()
+                    guard let display = SCContext.getSCDisplayWithMouse() else { return }
+                    app.createCountdownPanel(screen: display) {
+                        app.prepRecord(type: "audio", screens: display, windows: nil, applications: nil)
+                    }
                 }
-                HStack {
-                    ZStack(alignment: Alignment(horizontal: .center, vertical: .bottom)) {
-                        Button(action: {
-                            if let display = SCContext.getSCDisplayWithMouse() {
-                                closeMainWindow()
-                                appDelegate.createCountdownPanel(screen: display) {
-                                    AppDelegate.shared.prepRecord(type: "audio", screens: SCContext.getSCDisplayWithMouse(), windows: nil, applications: nil)
-                                }
-                            }
-                        }, label: {
-                            SelectorView(title: "System Audio".local, symbol: "waveform").cornerRadius(8)
-                        }).buttonStyle(.plain)
-                        Button {} label: {
-                            HStack(spacing: -2) {
-                                Button {
-                                    recordMic.toggle()
-                                } label: {
-                                    ZStack {
-                                        Image(systemName: "square.fill")
-                                            .font(.system(size: 15, weight: .medium))
-                                            .foregroundColor(.primary)
-                                            .colorInvert()
-                                            .opacity(0.2)
-                                        Image(systemName: recordMic ? "checkmark.square" : "square")
-                                            .font(.system(size: 16, weight: .medium))
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                                .onChange(of: recordMic) { _ in  Task { await SCContext.performMicCheck() }}
-                                if micDevice != "default" && enableAEC && recordMic{
-                                    Button {
-                                        let alert = createAlert(
-                                            title: "Compatibility Warning".local,
-                                            message: "The \"Acoustic Echo Cancellation\" is enabled, but it won't work on now.\n\nIf you need to use a specific input with AEC, set it to \"Default\" and select the device you want in System Preferences.\n\nOr you can start recording without AEC.".local,
-                                            button1: "OK".local, button2: "System Preferences".local)
-                                        if alert.runModal() == .alertSecondButtonReturn {
-                                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.sound?input")!)
-                                        }
-                                    } label: {
-                                        ZStack {
-                                            Image(systemName: "circle.fill").font(.system(size: 15))
-                                            Image(systemName: "exclamationmark")
-                                                .font(.system(size: 11.5, weight: .black))
-                                                .foregroundColor(.black)
-                                                .blendMode(.destinationOut)
-                                        }.compositingGroup()
-                                    }
-                                    .buttonStyle(.plain)
-                                    .frame(width: 24).fixedSize()
-                                    .padding(.leading, 1)
-                                } else {
-                                    Image(systemName: "mic.fill")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundColor(recordMic ? .primary : .secondary)
-                                        .frame(width: 24)
-                                        .padding(.leading, 1)
-                                }
-                                if #available(macOS 14, *) {
-                                    Picker("", selection: $micDevice) {
-                                        Text("Default".local).tag("default")
-                                        ForEach(micList, id: \.self) { device in
-                                            Text(device.localizedName).tag(device.localizedName)
-                                        }
-                                    }.frame(width: 90)
-                                        .background(
-                                            ZStack {
-                                                Color.primary
-                                                    .opacity(0.1)
-                                                    .cornerRadius(4)
-                                                    .padding(.vertical, -1)
-                                                    .padding(.horizontal, 3)
-                                                    .padding(.trailing, -16)
-                                                Image(systemName: "chevron.up.chevron.down")
-                                                    .offset(x: 50)
-                                            }
-                                        )
-                                        .disabled(!recordMic)
-                                        .padding(.leading, -10)
-                                        .frame(width: 99)
-                                        .onAppear{
-                                            let list = micList.map({ $0.localizedName })
-                                            if !list.contains(micDevice) { micDevice = "default" }
-                                        }
-                                } else {
-                                    Spacer().frame(width: 6)
-                                    Picker("", selection: $micDevice) {
-                                        Text("Default".local).tag("default")
-                                        ForEach(micList, id: \.self) { device in
-                                            Text(device.localizedName).tag(device.localizedName)
-                                        }
-                                    }
-                                    .disabled(!recordMic)
-                                    .padding(.leading, -7.5)
-                                    .frame(width: 100)
-                                    .onAppear{
-                                        let list = micList.map({ $0.localizedName })
-                                        if !list.contains(micDevice) { micDevice = "default" }
-                                    }
-                                }
-                            }.padding(.leading, -5)
-                        }
-                        .buttonStyle(.plain)
-                        .scaleEffect(0.69)
-                        .padding(.bottom, 4)
-                        .frame(width: 110)
-                        .background(.primary.opacity(0.00001))
-                    }.frame(height: 80)
-                    Divider().frame(height: 70)
-                    Button(action: {
-                        isPopoverShowing = true
-                    }, label: {
-                        SelectorView(title: "Mobile Device".local, symbol: "apps.ipad").cornerRadius(8)
-                    }).buttonStyle(.plain)
-                        .popover(isPresented: $isPopoverShowing, arrowEdge: .bottom) {
-                            iDevicePopoverView(closePopover: { isPopoverShowing = false })
-                        }
-                    Divider().frame(height: 70)
-                    Button(action: {
-                        closeMainWindow()
-                        appDelegate.openSettingPanel()
-                    }, label: {
-                        SelectorView(title: "Preferences".local, symbol: "gearshape").cornerRadius(8)
-                    }).buttonStyle(.plain)
-                    Divider().frame(height: 70)
-                    Button(action: {
-                        NSApp.terminate(self)
-                    }, label: {
-                        SelectorView(title: "Quit".local, symbol: "xmark.circle")
-                            .cornerRadius(8)
-                            .foregroundStyle(.darkMyRed)
-                    }).buttonStyle(.plain)
-                }
-            }.padding(10)
+            }
+        default: app.createNewWindow(view: ScreenSelector(), title: "Screen Selector".local)
         }
     }
 }

@@ -1,6 +1,6 @@
 //
 //  iDeviceSelector.swift
-//  QuickRecorder
+//  NavyRec
 //
 //  Created by apple on 2024/5/1.
 //
@@ -36,20 +36,20 @@ struct iDevicePopoverView: View {
                 HStack {
                     ZStack {
                         Circle().frame(width: 26)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Theme.text)
                             .opacity(0.2)
                         Image(systemName:"iphone.slash")
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Theme.text)
                             .font(.system(size: 12))
                     }.padding(.leading, 9)
                     Text("No Devices Found!")
                         .padding(.vertical, 8).padding(.trailing, 10)
                 }
                 .frame(maxWidth: .infinity)
-                Divider().padding(.vertical, 5)
+                NavyDivider().padding(.vertical, 5)
                 Text("Connect your device via USB")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.mute)
                     .padding(.bottom, 1)
             } else {
                 ForEach(devices.indices, id: \.self) { index in
@@ -63,52 +63,57 @@ struct iDevicePopoverView: View {
                         HStack {
                             ZStack {
                                 Circle().frame(width: 26)
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(Theme.text)
                                     .opacity(0.2)
                                 Image(systemName:"apple.logo")
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(Theme.navy0)
                                     .font(.system(size: 12))
                                     .offset(x: -0.5, y:  -0.5)
                             }.padding(.leading, 9)
-                            Text(devices[index].localizedName)
+                            Text(devices[index].localizedName).lineLimit(1).truncationMode(.tail)
+                                .frame(maxWidth: 180, alignment: .leading)
+                            Text("Record").fontWeight(.semibold)
                                 .padding(.vertical, 8).padding(.trailing, 10)
                             Spacer()
                         }
                         .frame(maxWidth: .infinity)
                         .background(
                             RoundedRectangle(cornerRadius: 5)
-                                .foregroundStyle(.primary)
-                                .opacity(hoverIndex == index ? 0.2 : 0.0)
+                                .foregroundStyle(Theme.navy0)
+                                .opacity(hoverIndex == index ? 0.1 : 0.0)
                         )
                         .onHover{ hovering in
                             if hoverIndex != index { hoverIndex = index }
                             if !hovering { hoverIndex = -1 }
                         }
-                    }).buttonStyle(.plain)
+                    }).buttonStyle(NavyButton(fill: Theme.blue, foreground: Theme.navy0))
                 }
-                Divider().padding(.top, 5)
+                NavyDivider().padding(.top, 5)
                 HStack(spacing: 0) {
-                    Text("Mute").font(.system(size: 10)).foregroundStyle(.secondary).padding(.trailing, 6)
+                    Text("Mute").font(.system(size: 13)).foregroundStyle(Theme.mute).padding(.trailing, 6)
                     Toggle(isOn: $mute) {}
-                        .toggleStyle(.checkbox)
-                        .scaleEffect(0.83)
+                        .toggleStyle(.checkbox).tint(Theme.blue)
+                        .accessibilityLabel("Mute")
+
                     Spacer()
-                    Text("Preset").font(.system(size: 10)).foregroundStyle(.secondary).padding(.trailing, -10)
-                    Picker("", selection: $preset) {
+                    Text("Preset").font(.system(size: 13)).foregroundStyle(Theme.mute).padding(.trailing, 6)
+                    Picker("Preset", selection: $preset) {
                         Text("Low".local).tag(AVCaptureSession.Preset.low)
                         Text("Medium".local).tag(AVCaptureSession.Preset.medium)
                         Text("High".local).tag(AVCaptureSession.Preset.high)
                     }
-                    .buttonStyle(.borderless)
-                    .scaleEffect(0.7)
-                    .offset(y: -0.5)
+                    .modifier(NavyOptionPicker())
                 }.padding(.vertical, 4).padding(.leading, 10)
                 Text("If you are on a call, enable \"Mute\"")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.mute)
                     .padding(.bottom, 1)
             }
-        }.padding(5)
+        }.padding(12)
+        .font(.system(size: 13))
+        .background(Theme.navy2)
+        .modifier(NavyPanel())
+    .modifier(RecordingStartGate())
     }
 }
 
